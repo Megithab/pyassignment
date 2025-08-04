@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=2.0" />
+  <title>Travel Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .page { display: none; padding: 40px; }
+    .active { display: block; }
+    nav a {
+      margin: 20px;
+      text-decoration: none;
+      font-weight: bold;
+      color: #28425e;
+      cursor: pointer;
+    }
+    .card {
+      background: #5fafe9;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 15px;
+      margin: 10px 0;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #2e0538; padding: 8px; text-align: left; }
+    th { background-color: #9a589b; }
+    img.flag { vertical-align: middle; height: 20px; }
+  </style>
+</head>
+<body>
+
+  <!-- 🔗 Navigation -->
+  <nav>
+    <a onclick="showPage('homePage')">🏠 Home</a>
+    <a onclick="showPage('favoritesPage')">🌟 Favorites</a>
+    <a onclick="showPage('tablePage')">📊 Table</a>
+    <a onclick="showPage('chartPage')">📈 Chart</a>
+  </nav>
+
+  <!-- 🏠 Home Page -->
+  <section id="homePage" class="page active">
+    <h2>🏠 Travel Form</h2>
+    <input type="text" id="placeInput" placeholder="Enter place" />
+    <input type="date" id="dateInput" />
+    <button onclick="addPlace()">Add</button>
+    <div id="placeList"></div>
+
+    <h3>🌤️ Check Weather</h3>
+    <input type="text" id="weatherCity" placeholder="Enter city for weather" />
+    <button onclick="getWeather()">Get Weather</button>
+    <p id="weatherOutput"></p>
+
+    <h3>🌍 Get Country Info</h3>
+    <input type="text" id="countryInput" placeholder="Enter country name" />
+    <button onclick="getCountryInfo()">Get Info</button>
+    <div id="countryInfoOutput"></div>
+  </section>
+
+  <!-- 🌟 Favorites -->
+  <section id="favoritesPage" class="page">
+    <h2>🌟 Favorite Places</h2>
+    <div id="favoritesList"></div>
+  </section>
+
+  <!-- 📊 Table -->
+  <section id="tablePage" class="page">
+    <h2>📊 Travel Data Table</h2>
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Place</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- 📈 Chart Page -->
+  <section id="chartPage" class="page">
+    <h2>📈 Travel Timeline</h2>
+    <canvas id="travelChart" height="100"></canvas>
+  </section>
+
+  <!-- 🔧 Scripts -->
+  <script>
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+    }
+
+    const travelList = [];
+
+    function addPlace() {
+      const place = document.getElementById("placeInput").value;
+      const date = document.getElementById("dateInput").value;
+      if (!place || !date) return alert("Please fill in both fields.");
+      travelList.push({ place, date });
+      document.getElementById("placeInput").value = "";
+      document.getElementById("dateInput").value = "";
+      renderPlaces();
+      updateTable();
+      updateChart();
+    }
+
+    function renderPlaces() {
+      const container = document.getElementById("placeList");
+      container.innerHTML = "";
+      travelList.forEach((item, index) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <strong>${item.place}</strong><br>
+          Date: ${item.date}<br>
+          <button onclick="deletePlace(${index})">Delete</button>
+        `;
+        container.appendChild(card);
+      });
+
+      const fav = document.getElementById("favoritesList");
+      fav.innerHTML = "";
+      travelList.forEach((item, i) => {
+        fav.innerHTML += `<div class='card'><p>⭐ ${item.place} - ${item.date}</p></div>`;
+      });
+    }
+
+    function deletePlace(index) {
+      travelList.splice(index, 1);
+      renderPlaces();
+      updateTable();
+      updateChart();
+    }
+
+    function updateTable() {
+      const tbody = document.querySelector("#dataTable tbody");
+      tbody.innerHTML = "";
+      travelList.forEach((item, i) => {
+        const row = `<tr><td>${i + 1}</td><td>${item.place}</td><td>${item.date}</td></tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    let chart;
+    function updateChart() {
+      const ctx = document.getElementById('travelChart').getContext('2d');
+      const sorted = [...travelList].sort((a, b) => new Date(a.date) - new Date(b.date));
+      const labels = sorted.map(i => i.place);
+      const data = sorted.map(i => new Date(i.date).getTime());
+      const formattedDates = sorted.map(i => i.date);
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Trip Timeline',
+            data: data,
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            fill: false,
+            tension: 0.3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return `Date: ${formattedDates[ctx.dataIndex]}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              ticks: {
+                callback: function(value) {
+                  const date = new Date(value);
+                  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    async function getWeather() {
+      const city = document.getElementById("weatherCity").value.trim();
+      const output = document.getElementById("weatherOutput");
+      output.innerText = "";
+
+      if (!city) return alert("Please enter a city name.");
+
+      const response = await fetch(`/api/country?name=${encodeURIComponent(countryName)}`);
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.main) {
+          output.innerText = `🌡️ ${city}: ${data.main.temp}°C, ${data.weather[0].description}`;
+        } else {
+          output.innerText = "❌ City not found.";
+        }
+
+      } catch (err) {
+        console.error("Error fetching weather:", err);
+        output.innerText = "⚠️ Failed to load weather.";
+      }
+    }
+
+    async function getCountryInfo() {
+      const countryName = document.getElementById("countryInput").value.trim();
+      const output = document.getElementById("countryInfoOutput");
+      output.innerHTML = "";
+
+      if (!countryName) {
+        alert("Please enter a country name.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`https://restcountries.com/v3.1/name/${countryName}`);
+        const data = await response.json();
+        const country = data[0];
+
+        if (!country) {
+          output.innerHTML = "❌ Country not found.";
+          return;
+        }
+
+        const flag = country.flags?.png || "";
+        const languages = Object.values(country.languages || {}).join(", ");
+        const currencies = Object.values(country.currencies || {}).map(c => `${c.name} (${c.symbol})`).join(", ");
+
+        output.innerHTML = `
+          <div class="card">
+            <h4>${country.name.common} ${flag ? `<img src="${flag}" class="flag" alt="Flag">` : ""}</h4>
+            <p><strong>🌐 Languages:</strong> ${languages || "N/A"}</p>
+            <p><strong>💱 Currency:</strong> ${currencies || "N/A"}</p>
+            <p><strong>🌎 Region:</strong> ${country.region}</p>
+          </div>
+        `;
+      } catch (error) {
+        console.error("Error fetching country info:", error);
+        output.innerHTML = "⚠️ Failed to load country info.";
+      }
+    }
+  </script>
+</body>
+</html>
